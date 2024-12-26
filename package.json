@@ -1,0 +1,16 @@
+{
+    "name": "peplink-web-script",
+    "version": "1.0.0",
+    "description": "Node.js web front end to run Peplink API script and email CSV.",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js"
+    },
+    "dependencies": {
+      "dotenv": "^16.3.1",
+      "express": "^4.18.2",
+      "nodemailer": "^6.9.4"
+      // If on Node <18, also: "node-fetch": "^2.6.7"
+    }
+  }
+  
