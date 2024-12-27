@@ -5,11 +5,13 @@ Peplink Warranty Checker
 A Node.js web application that:
 
 *   Provides **OTP-based login** for user authentication.
-*   Stores user **SMTP** and **Peplink InControl2** credentials (encrypted at rest).
+*   Stores user **Peplink InControl2** credentials (encrypted at rest). 
 *   Allows users to run **warranty checks** against Peplink’s API to retrieve upcoming or expired device warranties.
 *   Permits **account deletion** and immediate data removal.
 
 Licensed under the **AGPL 3.0**. See the `LICENSE` file for details.
+
+NOTE: Currently Node v22 cannot be used due to incompatibilities compiling with better-sqlite
 
 * * *
 
@@ -18,7 +20,7 @@ Features
 
 *   **User Management**
     *   OTP login flow (no password-based accounts).
-    *   Panel for storing/updating SMTP + Peplink credentials (encrypted).
+    *   Panel for storing/updating Peplink credentials (encrypted).
     *   Red button for “Delete My Account” to remove user data entirely.
 *   **Warranty Check**
     *   Calls Peplink’s InControl2 API to list organizations + devices.
@@ -46,7 +48,7 @@ Installation
     
 3.  **Copy** `.env.example` (or the sample `.env`) to `.env`:
     
-    cp .env.example .env
+    cp sample.env .env
           
     
     Then edit `.env` to set `SESSION_SECRET`, `SYSTEM_SMTP_HOST`, etc.
