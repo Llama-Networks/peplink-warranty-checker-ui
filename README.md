@@ -68,11 +68,10 @@ Configuration
 
 All sensitive credentials are in the `.env` file. Notable fields:
 
-*   `SESSION_SECRET`: A random key used by `express-session` to sign cookies.
-*   `SYSTEM_SMTP_*`: System-level SMTP credentials for sending OTP emails.
-*   `DATA_ENCRYPTION_KEY`, `DATA_ENCRYPTION_IV`: 32-byte key + 16-byte IV for AES encryption at rest.
-*   `PEPLINK_CLIENT_ID`, `PEPLINK_CLIENT_SECRET`: Optional default Peplink credentials if the user doesn’t provide their own.
-
+*   `SESSION_SECRET`: A random key used by `express-session` to sign cookies. **Required**
+*   `SYSTEM_SMTP_*`: System-level SMTP credentials for sending OTP emails. **Required**
+*   `DATA_ENCRYPTION_KEY`, `DATA_ENCRYPTION_IV`: 32-byte key + 16-byte IV for AES encryption at rest. **Required**
+*   `PEPLINK_CLIENT_ID`, `PEPLINK_CLIENT_SECRET`: **Optional** Default Peplink credentials if the user doesn’t provide their own. **This will be removed in a future release.**
 * * *
 
 Account Deletion
@@ -83,6 +82,15 @@ Account Deletion
 *   The user is redirected to `/login` with a message confirming data deletion.
 
 * * *
+
+Limitations
+-----------
+
+*   Users cannot delete their account without logging in
+*   No password recovery, all logins are done via OTP.
+*   Sending results via SMTP is currently not enabled, users are required to download the results in a CSV
+*   Credentials are encrypted using symmetrical AES encryption
+*   No data pulled from the API is stored on disk. All transactions are completed in memory on the server but may be cached in your browser.
 
 License
 -------
