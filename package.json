@@ -1,7 +1,9 @@
 {
   "name": "peplink-warranty-checker",
   "version": "1.0.0",
-  "description": "OTP-based login + user profiles for SMTP + Peplink warranty check",
+  "author": "Christopher Spitler <chris@llamanetworks.com>",
+  "license": "AGPL-3.0-or-later",
+  "description": "A tool to scan your accessible Peplink devices via InControl2 and report on warranty expiration status",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
