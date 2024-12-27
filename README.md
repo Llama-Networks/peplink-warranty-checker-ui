@@ -37,7 +37,7 @@ Installation
 
 1.  **Clone** this repository and enter the project directory:
     
-    git clone https://github.com/Llama-Networks/peplink-warranty-checker.git
+    git clone https://github.com/Llama-Networks/peplink-warranty-checker.git  
     cd peplink-warranty-checker
           
     
