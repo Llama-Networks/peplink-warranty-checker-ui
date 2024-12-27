@@ -64,6 +64,9 @@ app.get('/', (req, res) => {
   const loginLogoutBtn = isLoggedIn
     ? `<a href="/logout" class="btn btn-lm">Logout</a>`
     : `<a href="/login" class="btn btn-lm">Login</a>`;
+  const loginShowSettings = isLoggedIn
+    ? `<li class="nav-item"><a class="nav-link" href="/panel">Settings</a></li>`
+    : `&nbsp`
   const headerHTML = `
 <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
   <div class="container-fluid">
@@ -78,8 +81,7 @@ app.get('/', (req, res) => {
     </button>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="/warranty-check">Warranty Check</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Privacy Policy</a></li>
+        ${loginShowSettings}
       </ul>
       ${loginLogoutBtn}
     </div>
@@ -104,7 +106,7 @@ app.get('/', (req, res) => {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Peplink Warranty Checker</title>
+  <title>Llama Networks' Peplink Warranty Checker</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <style>
     .btn-lm {
@@ -145,7 +147,7 @@ app.get('/', (req, res) => {
 <body>
   ${headerHTML}
   <div class="cover-container mx-auto">
-    <h1 class="cover-heading">Welcome to Peplink Warranty Check</h1>
+    <h1 class="cover-heading">Welcome to Llama Networks Peplink Warranty Check Tool</h1>
     <p class="lead">Easily verify device warranties using the InControl2 API.</p>
     <p>
       <a href="/login" class="btn btn-lm btn-lg">Get Started</a>

@@ -43,13 +43,13 @@ function getOtpSmtpConfig() {
 
 async function sendOtpEmail(user, otpCode) {
   const transporter = nodemailer.createTransport(getOtpSmtpConfig());
-  const fromAddress = process.env.SYSTEM_SMTP_FROM || 'Peplink OTP <noreply@example.com>';
+  const fromAddress = process.env.SYSTEM_SMTP_FROM || 'Llama Networks <llamatasks@llamamail.io>';
 
   const mailOptions = {
     from: fromAddress,
     to: user.email,
-    subject: 'Your One-Time Password',
-    text: `Your one-time password is: ${otpCode}`
+    subject: 'Llama Networks | Your One-Time Password',
+    text: `Your one-time password for the Llama Networks Peplink Warranty Checker is: ${otpCode}`
   };
 
   try {
@@ -81,8 +81,7 @@ function getHeaderHTML(req) {
     </button>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="/warranty-check">Warranty Check</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Privacy Policy</a></li>
+        <li class="nav-item"><a class="nav-link" href="/panel">Settings</a></li>
       </ul>
       ${loginLogoutBtn}
     </div>
@@ -126,7 +125,7 @@ router.get('/login', (req, res) => {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Llama Networks Peplink Warranty Checker - Login</title>
+  <title>Llama Networks Peplink Warranty Checker</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <style>
     .btn-lm {
@@ -214,7 +213,8 @@ router.post('/login', async (req, res) => {
 <body>
   ${header}
   <div class="container">
-    <h1>Please check your email for the OTP</h1>
+    <h1>Enter your one-time password</h1>
+    <p>Check your email for a one-time password. Enter that password here to complete your login.</p>
     <form method="POST" action="/login/otp" class="card card-body">
       <input type="hidden" name="email" value="${email}" />
       <div class="mb-3">
@@ -257,7 +257,7 @@ router.post('/login/otp', (req, res) => {
 router.get('/logout', (req, res) => {
     // Destroy session
     req.session.destroy(() => {
-      res.redirect('/login'); // or / if you prefer
+      res.redirect('/'); // or / if you prefer
     });
   });
 

@@ -153,8 +153,7 @@ function getHeaderHTML(req) {
     </button>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="/warranty-check">Warranty Check</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Privacy Policy</a></li>
+        <li class="nav-item"><a class="nav-link" href="/panel">Settings</a></li>
       </ul>
       ${loginLogoutBtn}
     </div>
@@ -213,8 +212,8 @@ router.get('/warranty-check', requireLogin, (req, res) => {
   const disabledAttr = missingPeplink ? 'disabled' : '';
   const alertHtml = missingPeplink ? `
 <div class="alert alert-warning">
-  <strong>Warning!</strong> Your Peplink InControl2 credentials are missing. 
-  Please go to <a href="/panel">User Panel</a> and add them before running the check.
+  <strong>Warning!</strong> Your Peplink InControl2 API credentials are missing. 
+  Please go to the <a href="/panel">Control Panel</a> and add them before running the check.
 </div>
   ` : '';
 
@@ -245,19 +244,39 @@ router.get('/warranty-check', requireLogin, (req, res) => {
 </head>
 <body>
   ${header}
-  <div class="container">
+  <div class="container" mt-4>
     <h1>Peplink Warranty Check</h1>
     ${alertHtml}
-
-    <form method="POST" action="/warranty-check" onsubmit="showSpinner(event)">
-      <button type="submit" class="btn btn-lm" id="checkBtn" ${disabledAttr}>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <p class="card-text">
+                This tool uses your Peplink InControl2 API credentials to fetch all organizations linked to your Peplink ID. It identifies devices within those organizations that have 90 days or fewer remaining before their Care Plan expires.
+            </p>
+            <p class="card-text">
+                After the scan is complete, you will see a table displaying the organization, serial number, and expiration date for each device. You can also download this data in CSV format.
+            </p>
+                <div class="alert alert-warning" role="alert">
+                    <strong>Important:</strong> No device data is stored by this tool. All data is retrieved via API and presented only on-screen and as a one-time download. If you navigate away from the completed scan page, the data will no longer be accessible until re-fetched. To delete your account and associated credentials, visit your <a href="/panel" class="alert-link">control panel</a>.
+                </div>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+        <form method="POST" action="/warranty-check" onsubmit="showSpinner(event)">
+        <button type="submit" class="btn btn-primary me-md-2" id="checkBtn" ${disabledAttr}>
         Run Warranty Check
         <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" id="spinner"></span>
-      </button>
-    </form>
-
-    <a href="/panel" class="btn btn-secondary mt-3">Back to Panel</a>
+        </button>
+        </form>
+        <br/>
+        <form action="/panel">
+        <button type="submit" class="btn btn-primary" id="checkBtn">
+        Control Panel
+        </button>
+        </form>
+        </div>
+        </div>
+        
+    </div>
   </div>
+
   ${footer}
 
   <script>
@@ -299,7 +318,7 @@ router.post('/warranty-check', requireLogin, async (req, res) => {
 <body>
   <div class="container mt-5">
     <div class="alert alert-danger">
-      Missing Peplink credentials. <a href="/panel">Go to Panel</a>
+      Missing Peplink credentials. <a href="/panel">Go to Control Panel</a> to add them.
     </div>
   </div>
 </body>

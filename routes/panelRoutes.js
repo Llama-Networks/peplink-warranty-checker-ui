@@ -35,8 +35,7 @@ function getHeaderHTML(req) {
     </button>
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        <li class="nav-item"><a class="nav-link" href="/warranty-check">Warranty Check</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Privacy Policy</a></li>
+        <li class="nav-item"><a class="nav-link" href="/panel">Settings</a></li>
       </ul>
       ${loginLogoutBtn}
     </div>
@@ -124,6 +123,7 @@ router.get('/panel', requireLogin, (req, res) => {
     }
     .btn-delete:hover {
       opacity: 0.9;
+      background-color: #d9534f; /* Bootstrap 'danger' shade */
       color: #ffffff;
     }
   </style>
@@ -134,6 +134,7 @@ router.get('/panel', requireLogin, (req, res) => {
     <h1>User Panel for ${user.email}</h1>
 
     <form method="POST" action="/panel" class="card card-body mb-3">
+    <!--
       <h3>SMTP Settings</h3>
       <div class="mb-3">
         <label>Host</label>
@@ -163,8 +164,9 @@ router.get('/panel', requireLogin, (req, res) => {
         <label>SMTP Pass</label>
         <input type="password" name="smtp_pass" class="form-control" value="${user.smtp_pass || ''}">
       </div>
-
-      <h3>Peplink Credentials</h3>
+    -->
+      <h3>Peplink API Credentials</h3>
+      <p>To create API credentials, head over to your <a href="https://incontrol2.peplink.com/r/user/edit" target="_blank">Peplink ID settings</a> and create a new client applications to generate a client ID and client secret.</p>
       <div class="mb-3">
         <label>Peplink Client ID</label>
         <input type="text" name="peplink_client_id" class="form-control" value="${user.peplink_client_id || ''}">
@@ -176,15 +178,16 @@ router.get('/panel', requireLogin, (req, res) => {
 
       <button type="submit" class="btn btn-lm">Save</button>
     </form>
+    <div class="card card-body mb-3">
+    <a href="/warranty-check" class="btn btn-lm">Go to Warranty Check</a>
+    </div>
     <!-- Delete My Account form -->
-    <form method="POST" action="/panel/delete" 
+    <form method="POST" class="card card-body mb-3" action="/panel/delete" 
           onsubmit="return confirm('Are you sure you want to delete your account? This cannot be undone.');">
       <button type="submit" class="btn btn-delete">
         Delete My Account
       </button>
     </form>
-
-    <a href="/warranty-check" class="btn btn-lm">Go to Warranty Check</a>
   </div>
   ${footer}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
