@@ -26,37 +26,23 @@ function findOrCreateUserByEmail(db, email) {
   return row;
 }
 
-// build user’s SMTP config or fallback
-function getSmtpConfigForUser(user) {
-  const host = user.smtp_host || process.env.SYSTEM_SMTP_HOST;
-  const port = parseInt(user.smtp_port || process.env.SYSTEM_SMTP_PORT || '587', 10);
-  
-  let secure;
-  if (user.smtp_secure === 'true') {
-    secure = true;
-  } else if (user.smtp_secure === 'false') {
-    secure = false;
-  } else {
-    secure = (port === 465);
-  }
-
-  const authUser = user.smtp_user || process.env.SYSTEM_SMTP_USER;
-  const authPass = user.smtp_pass || process.env.SYSTEM_SMTP_PASS;
-
+// Always using system-based (from .env) or fallback to user if that’s your preference
+// For simplicity, we assume you want .env for OTP. If not, you can do the fallback logic.
+function getOtpSmtpConfig() {
+  const port = parseInt(process.env.SYSTEM_SMTP_PORT || '465', 10);
   return {
-    host,
+    host: process.env.SYSTEM_SMTP_HOST,
     port,
-    secure,
+    secure: (port === 465), // or true if you want forced
     auth: {
-      user: authUser,
-      pass: authPass
+      user: process.env.SYSTEM_SMTP_USER,
+      pass: process.env.SYSTEM_SMTP_PASS
     }
   };
 }
 
 async function sendOtpEmail(user, otpCode) {
-  const smtpConfig = getSmtpConfigForUser(user);
-  const transporter = nodemailer.createTransport(smtpConfig);
+  const transporter = nodemailer.createTransport(getOtpSmtpConfig());
   const fromAddress = process.env.SYSTEM_SMTP_FROM || 'Peplink OTP <noreply@example.com>';
 
   const mailOptions = {
@@ -74,26 +60,92 @@ async function sendOtpEmail(user, otpCode) {
   }
 }
 
+function getHeaderHTML(req) {
+  // If logged in => "Logout", else "Login"
+  const isLoggedIn = !!req.session.userEmail;
+  const loginLogoutBtn = isLoggedIn
+    ? `<a href="/logout" class="btn btn-lm">Logout</a>`
+    : `<a href="/login" class="btn btn-lm">Login</a>`;
+
+  return `
+<nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="https://www.peplinkwarrantycheck.com">
+      <img src="https://f000.backblazeb2.com/file/llama-public/llama-logo.png" 
+           width="176px" height="80px" alt="Logo" class="d-inline-block align-text-top">
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
+            data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" 
+            aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link" href="/warranty-check">Warranty Check</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">Privacy Policy</a></li>
+      </ul>
+      ${loginLogoutBtn}
+    </div>
+  </div>
+</nav>
+
+  `;
+}
+
+function getFooterHTML() {
+  return `
+<footer class="mt-5 py-3 bg-light">
+  <div class="container text-center">
+    <p class="mb-1">&copy; 2024 Llama Networks LLC</p>
+    <small>
+      <a href="https://www.llamanetworks.com/privacy-policy" target="_blank">Privacy Policy</a> | 
+      <a href="https://www.llamanetworks.com/terms-of-use" target="_blank">Terms of Use</a> | 
+      <a href="https://www.llamanetworks.com/cookie-policy" target="_blank">Cookie Policy</a>
+    </small>
+  </div>
+</footer>
+  `;
+}
+
 // GET /login => show form
 router.get('/login', (req, res) => {
+  const header = getHeaderHTML(req);
+  const footer = getFooterHTML();
   res.send(`
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Login</title>
+  <title>Llama Networks Peplink Warranty Checker - Login</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    .btn-lm {
+      background-color: #2589BD;
+      color: #ffffff;
+      border: none;
+    }
+    .btn-lm:hover {
+      opacity: 0.9;
+      background-color: #2589BD;
+      color: #ffffff;
+    }
+  </style>
 </head>
-<body class="p-4">
-<div class="container">
-  <h1>OTP Login</h1>
-  <form method="POST" action="/login" class="card card-body">
-    <div class="mb-3">
-      <label for="email" class="form-label">Email address</label>
-      <input type="email" name="email" class="form-control" required>
-    </div>
-    <button type="submit" class="btn btn-primary">Send OTP</button>
-  </form>
-</div>
+<body>
+  ${header}
+  <div class="container">
+    <h1>Login</h1>
+    <p>In order to login, please input your email address. You will be sent a one-time code which you can enter to complete your login.</p>
+    <br>
+    <form method="POST" action="/login" class="card card-body">
+      <div class="mb-3">
+        <label for="email" class="form-label">Email address</label>
+        <input type="email" name="email" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-lm">Send OTP</button>
+    </form>
+  </div>
+  ${footer}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
   `);
@@ -117,25 +169,51 @@ router.post('/login', async (req, res) => {
   await sendOtpEmail(user, otpCode);
 
   // Show form
+  const header = getHeaderHTML(req);
+  const footer = getFooterHTML();
   res.send(`
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Enter OTP</title>
+  <title>Llama Networks Peplink Warranty Checker</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    .btn-lm {
+      background-color: #2589BD;
+      color: #ffffff;
+      border: none;
+    }
+    .btn-lm:hover {
+      opacity: 0.9;
+      background-color: #40a3d7;
+      color: #ffffff;
+    }
+    body {
+      color: #3b5563;
+    }
+    .navbar {
+      color: #3b5563;
+    }
+    .footer {
+      color: #3b5563;
+    }
+  </style>
 </head>
-<body class="p-4">
-<div class="container">
-  <h1>Please check your email for the OTP</h1>
-  <form method="POST" action="/login/otp" class="card card-body">
-    <input type="hidden" name="email" value="${email}" />
-    <div class="mb-3">
-      <label for="otp" class="form-label">OTP Code</label>
-      <input type="text" name="otp" class="form-control" required>
-    </div>
-    <button type="submit" class="btn btn-primary">Verify</button>
-  </form>
-</div>
+<body>
+  ${header}
+  <div class="container">
+    <h1>Please check your email for the OTP</h1>
+    <form method="POST" action="/login/otp" class="card card-body">
+      <input type="hidden" name="email" value="${email}" />
+      <div class="mb-3">
+        <label for="otp" class="form-label">OTP Code</label>
+        <input type="text" name="otp" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-lm">Verify</button>
+    </form>
+  </div>
+  ${footer}
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
   `);
@@ -159,8 +237,16 @@ router.post('/login/otp', (req, res) => {
   // clear OTP
   db.prepare("UPDATE users SET otp = '' WHERE email = ?").run(email);
 
-  // redirect to warranty check
+  // redirect to warranty check (the default page)
   res.redirect('/warranty-check');
 });
+
+// LOGOUT route
+router.get('/logout', (req, res) => {
+    // Destroy session
+    req.session.destroy(() => {
+      res.redirect('/login'); // or / if you prefer
+    });
+  });
 
 module.exports = router;
