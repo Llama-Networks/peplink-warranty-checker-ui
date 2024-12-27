@@ -116,6 +116,16 @@ router.get('/panel', requireLogin, (req, res) => {
     .footer {
       color: #3b5563;
     }
+        /* Red button for delete */
+    .btn-delete {
+      background-color: #d9534f; /* Bootstrap 'danger' shade */
+      color: #ffffff;
+      border: none;
+    }
+    .btn-delete:hover {
+      opacity: 0.9;
+      color: #ffffff;
+    }
   </style>
 </head>
 <body>
@@ -165,6 +175,13 @@ router.get('/panel', requireLogin, (req, res) => {
       </div>
 
       <button type="submit" class="btn btn-lm">Save</button>
+    </form>
+    <!-- Delete My Account form -->
+    <form method="POST" action="/panel/delete" 
+          onsubmit="return confirm('Are you sure you want to delete your account? This cannot be undone.');">
+      <button type="submit" class="btn btn-delete">
+        Delete My Account
+      </button>
     </form>
 
     <a href="/warranty-check" class="btn btn-lm">Go to Warranty Check</a>
@@ -250,4 +267,20 @@ router.post('/panel', requireLogin, (req, res) => {
   `);
 });
 
+/**
+ * POST /panel/delete => delete user’s account from DB
+ * and destroy session
+ */
+router.post('/panel/delete', requireLogin, (req, res) => {
+    const db = req.app.get('db');
+    const email = req.session.userEmail;
+  
+    // Remove user row
+    db.prepare('DELETE FROM users WHERE email = ?').run(email);
+  
+    // Destroy session, then redirect with ?deleted=1
+    req.session.destroy(() => {
+      res.redirect('/login?deleted=1');
+    });
+  });
 module.exports = router;

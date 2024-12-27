@@ -111,6 +111,17 @@ function getFooterHTML() {
 router.get('/login', (req, res) => {
   const header = getHeaderHTML(req);
   const footer = getFooterHTML();
+  let deletedCallout = '';
+  if (req.query.deleted === '1') {
+    deletedCallout = `
+<div class="alert mt-3" style="
+  background-color: rgba(255,0,0,0.2);
+  border: 1px solid #fca8a8;
+  color: #b10000;">
+  <strong>Notice:</strong> Your account and all of your data have been permanently removed from our system.
+</div>
+    `;
+  }
   res.send(`
 <!DOCTYPE html>
 <html>
@@ -133,6 +144,7 @@ router.get('/login', (req, res) => {
 <body>
   ${header}
   <div class="container">
+  ${deletedCallout}
     <h1>Login</h1>
     <p>In order to login, please input your email address. You will be sent a one-time code which you can enter to complete your login.</p>
     <br>
