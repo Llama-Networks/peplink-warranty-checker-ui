@@ -1,15 +1,18 @@
 {
-    "name": "peplink-web-script",
-    "version": "1.0.0",
-    "description": "Node.js web front end to run Peplink API script and email CSV.",
-    "main": "server.js",
-    "scripts": {
-      "start": "node server.js"
-    },
-    "dependencies": {
-      "dotenv": "^16.3.1",
-      "express": "^4.18.2",
-      "nodemailer": "^6.9.4"
-    }
+  "name": "peplink-warranty-checker",
+  "version": "1.0.0",
+  "description": "OTP-based login + user profiles for SMTP + Peplink warranty check",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "better-sqlite3": "^8.3.0",
+    "nodemailer": "^6.9.4",
+    "uuid": "^9.0.0",
+    "node-fetch": "^2.6.7"
   }
-  
+}
