@@ -1,11 +1,15 @@
 /******************************************************************************
  * routes/loginRoutes.js
  *
- * Handles:
- *   GET /login
- *   POST /login
- *   POST /login/otp
- * For user OTP-based login
+ * 1. GET /login -> user enters email for OTP
+ * 2. POST /login -> generate OTP, email user
+ * 3. POST /login/otp -> verify OTP
+ * 4. GET /logout -> logout
+ * 5. POST /login/resend -> resend code if cooldown passed
+ *
+ * On incorrect OTP:
+ *   - Show a Bootstrap modal with "Incorrect OTP" message.
+ *   - Provide "Resend" button that triggers a 60s cooldown logic.
  ******************************************************************************/
 const express = require('express');
 const nodemailer = require('nodemailer');
@@ -17,23 +21,19 @@ const router = express.Router();
 function findOrCreateUserByEmail(db, email) {
   const row = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   if (!row) {
-    db.prepare(`
-      INSERT INTO users (email, otp)
-      VALUES (?, ?)
-    `).run(email, '');
+    db.prepare(`INSERT INTO users (email, otp) VALUES (?, ?)`).run(email, '');
     return db.prepare('SELECT * FROM users WHERE email = ?').get(email);
   }
   return row;
 }
 
-// Always using system-based (from .env) or fallback to user if that’s your preference
-// For simplicity, we assume you want .env for OTP. If not, you can do the fallback logic.
+// We'll use system-level SMTP from .env
 function getOtpSmtpConfig() {
   const port = parseInt(process.env.SYSTEM_SMTP_PORT || '465', 10);
   return {
     host: process.env.SYSTEM_SMTP_HOST,
     port,
-    secure: (port === 465), // or true if you want forced
+    secure: (port === 465),
     auth: {
       user: process.env.SYSTEM_SMTP_USER,
       pass: process.env.SYSTEM_SMTP_PASS
@@ -41,6 +41,7 @@ function getOtpSmtpConfig() {
   };
 }
 
+// email options and send mail 
 async function sendOtpEmail(user, otpCode) {
   const transporter = nodemailer.createTransport(getOtpSmtpConfig());
   const fromAddress = process.env.SYSTEM_SMTP_FROM || 'Llama Networks <llamatasks@llamamail.io>';
@@ -60,8 +61,8 @@ async function sendOtpEmail(user, otpCode) {
   }
 }
 
+// For the header
 function getHeaderHTML(req) {
-  // If logged in => "Logout", else "Login"
   const isLoggedIn = !!req.session.userEmail;
   const loginLogoutBtn = isLoggedIn
     ? `<a href="/logout" class="btn btn-lm">Logout</a>`
@@ -71,11 +72,11 @@ function getHeaderHTML(req) {
 <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
   <div class="container-fluid">
     <a class="navbar-brand" href="https://www.peplinkwarrantycheck.com">
-      <img src="https://f000.backblazeb2.com/file/llama-public/llama-logo.png" 
+      <img src="https://f000.backblazeb2.com/file/llama-public/llama-logo.png"
            width="176px" height="80px" alt="Logo" class="d-inline-block align-text-top">
     </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
-            data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" 
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
             aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
@@ -86,41 +87,37 @@ function getHeaderHTML(req) {
       ${loginLogoutBtn}
     </div>
   </div>
-</nav>
-
-  `;
+</nav>`;
 }
 
+// For the footer
 function getFooterHTML() {
   return `
 <footer class="mt-5 py-3 bg-light">
   <div class="container text-center">
     <p class="mb-1">&copy; 2024 Llama Networks LLC</p>
     <small>
-      <a href="https://www.llamanetworks.com/privacy-policy" target="_blank">Privacy Policy</a> | 
-      <a href="https://www.llamanetworks.com/terms-of-use" target="_blank">Terms of Use</a> | 
+      <a href="https://www.llamanetworks.com/privacy-policy" target="_blank">Privacy Policy</a> |
+      <a href="https://www.llamanetworks.com/terms-of-use" target="_blank">Terms of Use</a> |
       <a href="https://www.llamanetworks.com/cookie-policy" target="_blank">Cookie Policy</a>
     </small>
   </div>
-</footer>
-  `;
+</footer>`;
 }
 
-// GET /login => show form
+// GET /login => user enters email
 router.get('/login', (req, res) => {
   const header = getHeaderHTML(req);
   const footer = getFooterHTML();
   let deletedCallout = '';
   if (req.query.deleted === '1') {
     deletedCallout = `
-<div class="alert mt-3" style="
-  background-color: rgba(255,0,0,0.2);
-  border: 1px solid #fca8a8;
-  color: #b10000;">
+<div class="alert mt-3" style="background-color: rgba(255,0,0,0.2);
+     border: 1px solid #fca8a8; color: #b10000;">
   <strong>Notice:</strong> Your account and all of your data have been permanently removed from our system.
-</div>
-    `;
+</div>`;
   }
+
   res.send(`
 <!DOCTYPE html>
 <html>
@@ -143,9 +140,9 @@ router.get('/login', (req, res) => {
 <body>
   ${header}
   <div class="container">
-  ${deletedCallout}
+    ${deletedCallout}
     <h1>Login</h1>
-    <p>In order to login, please input your email address. You will be sent a one-time code which you can enter to complete your login.</p>
+    <p>Please input your email address. You will be sent a one-time code to complete your login.</p>
     <br>
     <form method="POST" action="/login" class="card card-body">
       <div class="mb-3">
@@ -158,31 +155,52 @@ router.get('/login', (req, res) => {
   ${footer}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-</html>
-  `);
+</html>`);
 });
 
-// POST /login => generate OTP, email user
+// POST /login => generate OTP, store, email to user
 router.post('/login', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.send('Missing email');
 
   const db = req.app.get('db');
-  let user = findOrCreateUserByEmail(db, email);
+  const user = findOrCreateUserByEmail(db, email);
 
   // Generate OTP
   const otpCode = uuid.v4().split('-')[0].toUpperCase();
 
-  // Store
+  // Store in DB
   db.prepare('UPDATE users SET otp = ? WHERE email = ?').run(otpCode, email);
 
-  // Send
+  // Send the OTP
   await sendOtpEmail(user, otpCode);
 
-  // Show form
+  // Show the "enter OTP" page
+  return renderOtpPage(res, req, { email, showInvalidModal: false });
+});
+
+/**
+ * Utility: Render the "enter OTP" page. 
+ * If showInvalidModal = true => display a Bootstrap modal indicating invalid OTP.
+ */
+function renderOtpPage(res, req, options) {
+  const { email, showInvalidModal } = options;
   const header = getHeaderHTML(req);
   const footer = getFooterHTML();
-  res.send(`
+
+  // Next resend allowed time from session
+  const nextAllowed = req.session.nextResendAllowedTime || 0;
+  const now = Date.now();
+  const canResendNow = (now >= nextAllowed);
+
+  // We'll embed a small script that handles the "Resend" AJAX call + 60s countdown
+  // The modal is hidden unless showInvalidModal = true => we'll auto-trigger it with JS
+  const showModalScript = showInvalidModal ? 
+    `var invalidModal = new bootstrap.Modal(document.getElementById('invalidOtpModal'));
+     invalidModal.show();`
+    : '';
+
+  return res.send(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -214,7 +232,7 @@ router.post('/login', async (req, res) => {
   ${header}
   <div class="container">
     <h1>Enter your one-time password</h1>
-    <p>Check your email for a one-time password. Enter that password here to complete your login.</p>
+    <p>Check your email for a one-time password. Enter that here to complete your login.</p>
     <form method="POST" action="/login/otp" class="card card-body">
       <input type="hidden" name="email" value="${email}" />
       <div class="mb-3">
@@ -224,14 +242,98 @@ router.post('/login', async (req, res) => {
       <button type="submit" class="btn btn-lm">Verify</button>
     </form>
   </div>
+
+  <!-- Bootstrap Modal for invalid OTP -->
+  <div class="modal fade" id="invalidOtpModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Incorrect OTP</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>The OTP you entered is incorrect. Please check your code and try again.</p>
+          <p>If you'd like to resend a new OTP, click "Resend OTP".</p>
+          <p style="color: red;" id="errorMsg"></p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button class="btn btn-lm" id="resendBtn" ${canResendNow ? '' : 'disabled'}>Resend OTP</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   ${footer}
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    ${showModalScript}
+
+    var resendBtn = document.getElementById('resendBtn');
+    var errorMsg = document.getElementById('errorMsg');
+
+    // If the button is disabled, let's do a countdown
+    var canResendNow = ${canResendNow ? 'true' : 'false'};
+    var nextAllowedTime = ${nextAllowed};
+
+    if (!canResendNow) {
+      // Calculate how many seconds left
+      var remaining = Math.floor( (nextAllowedTime - Date.now()) / 1000 );
+      startCountdown(remaining);
+    }
+
+    resendBtn.addEventListener('click', function() {
+      // AJAX POST /login/resend
+      resendBtn.disabled = true;
+      errorMsg.textContent = '';
+      fetch('/login/resend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: "${email}" })
+      })
+      .then(resp => resp.json())
+      .then(data => {
+        if (data.success) {
+          // success => show message, start countdown
+          errorMsg.style.color = 'green';
+          errorMsg.textContent = 'OTP resent successfully. Please check your email.';
+          var remainSecs = data.cooldown;
+          startCountdown(remainSecs);
+        } else {
+          // error
+          errorMsg.style.color = 'red';
+          errorMsg.textContent = data.error || 'Error resending code.';
+          resendBtn.disabled = false;
+        }
+      })
+      .catch(err => {
+        errorMsg.style.color = 'red';
+        errorMsg.textContent = 'Request failed: ' + err;
+        resendBtn.disabled = false;
+      });
+    });
+
+    function startCountdown(secs) {
+      resendBtn.disabled = true;
+      var interval = setInterval(function() {
+        secs--;
+        if (secs <= 0) {
+          clearInterval(interval);
+          errorMsg.textContent = '';
+          resendBtn.disabled = false;
+        } else {
+          errorMsg.textContent = 'Please wait ' + secs + 's before requesting another code.';
+        }
+      }, 1000);
+    }
+  </script>
 </body>
 </html>
   `);
-});
+}
 
-// POST /login/otp => verify
+// POST /login/otp => verify the code
 router.post('/login/otp', (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.send('Missing email or OTP');
@@ -241,24 +343,61 @@ router.post('/login/otp', (req, res) => {
   if (!user) return res.send('User not found');
 
   if (user.otp !== otp) {
-    return res.send('Invalid OTP');
+    // Render the same OTP page with a modal
+    return renderOtpPage(res, req, { email, showInvalidModal: true });
   }
 
-  // success => store in session
+  // success
   req.session.userEmail = email;
-  // clear OTP
   db.prepare("UPDATE users SET otp = '' WHERE email = ?").run(email);
-
-  // redirect to warranty check (the default page)
   res.redirect('/warranty-check');
 });
 
-// LOGOUT route
-router.get('/logout', (req, res) => {
-    // Destroy session
-    req.session.destroy(() => {
-      res.redirect('/'); // or / if you prefer
+// A new route to handle "Resend" code with cooldown
+router.post('/login/resend', (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.json({ success: false, error: 'No email provided.' });
+  }
+
+  const db = req.app.get('db');
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  if (!user) {
+    return res.json({ success: false, error: 'User not found.' });
+  }
+
+  // Check session cooldown
+  const now = Date.now();
+  const nextAllowed = req.session.nextResendAllowedTime || 0;
+  if (now < nextAllowed) {
+    // Still in cooldown
+    const remainSecs = Math.floor( (nextAllowed - now) / 1000 );
+    return res.json({ success: false, error: `Please wait ${remainSecs}s before requesting another code.` });
+  }
+
+  // Set new cooldown: 60s from now
+  req.session.nextResendAllowedTime = now + (60 * 1000);
+
+  // Generate new code
+  const otpCode = uuid.v4().split('-')[0].toUpperCase();
+  db.prepare('UPDATE users SET otp = ? WHERE email = ?').run(otpCode, email);
+
+  // Send email
+  sendOtpEmail(user, otpCode)
+    .then(() => {
+      res.json({ success: true, cooldown: 60 });
+    })
+    .catch(err => {
+      console.error('Error resending OTP:', err);
+      res.json({ success: false, error: 'Failed to resend code.' });
     });
+});
+
+// GET /logout => destroy session
+router.get('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.redirect('/');
   });
+});
 
 module.exports = router;
